@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>WebGL Example File</title>
+
+
+<script id="vshader" type="x-shader/x-vertex">
+   attribute vec3 aPosition;
+   varying   vec3 vPosition;
+   void main() {
+      gl_Position = vec4(aPosition, 1.0);
+      vPosition = aPosition;
+   }
+</script>
+
+<script id="fshader" type="x-shader/x-fragment">
+    precision mediump float;
+    varying vec3 vPosition;
+
+    struct Sphere {
+        vec3 center;
+        float radius;
+        vec3 color;
+    };
+
+    struct Ray {
+        vec3 origin;
+        vec3 direction;
+    };
+
+    struct Light {
+        vec3 position;
+        float ambience;
+        vec3 specular;
+        vec3 diffuse;
+    };
+
+    struct RayTracerOutput {
+        Ray reflectionRay;
+        vec3 color;
+    };
+
+
+    Sphere spheres[3];
+    Ray rays[1];
+    Light light[1];
+
+    void initialize() {
+        float x = vPosition.x; // pixel positions x
+        float y = vPosition.y; // pixel positions y
+        float z = vPosition.z; // pixel positions z
+        float focalLength = 2.0;
+        vec3 color = vec3(0.0, 0.0, 0.0);
+
+        // Create spheres
+        spheres[0].center = vec3(0, 0, 0);
+        spheres[0].radius = 0.3;
+        spheres[0].color = vec3(1.0, 0.0, 0.0);
+
+        // create a second sphere
+        spheres[1].center = vec3(0, 0.5, 0.0);
+        spheres[1].radius = 0.3;
+        spheres[1].color = vec3(0.0, 1.0, 0.0);
+
+        // create a third sphere
+        spheres[2].center = vec3(0.9, 0.0, 0.8);
+        spheres[2].radius = 0.2;
+        spheres[2].color = vec3(0.0, 0.0, 1.0);
+
+        // Create ray
+        rays[0].origin = vec3(0.0, 0.0, focalLength);
+        rays[0].direction = normalize(vec3(x, y, -focalLength));
+
+        // Create Light source
+        light[0].position = vec3(0.0, 0.0, 1.0);
+        light[0].ambience = 0.1;
+    }
+
+    float checkIntersectSphere(Sphere sphere, Ray ray) {
+        vec3 sphereCenter = sphere.center;
+        float radius = sphere.radius;
+        vec3 cameraSource = ray.origin;
+        vec3 cameraDirection = ray.direction;
+
+        vec3 distanceFromCenter = (cameraSource - sphereCenter);
+        float B = 2.0 * dot(cameraDirection, distanceFromCenter);
+        float C = dot(distanceFromCenter, distanceFromCenter) - pow(radius, 2.0);
+        float delta = pow(B, 2.0) - 4.0 * C;
+        float t = 0.0;
+        if (delta > 0.0) {
+            float sqRoot = sqrt(delta);
+            float t1 = (-B + sqRoot) / 2.0;
+            float t2 = (-B - sqRoot) / 2.0;
+            t = min(t1, t2);
+        }
+        if (delta == 0.0) {
+            t = -B / 2.0;
+        }
+
+        return t;
+    }
+
+     RayTracerOutput getRay(Ray ray, Light light) {
+
+         RayTracerOutput rayTracer;
+
+         float veryBigNum = 99999999.9;
+
+         float minT =  veryBigNum; // initialize to infinity
+         float t = 0.0;
+
+         vec3 color;
+
+         Sphere sphereToShow;
+
+         for(int i = 0; i < 3; i++) {  // i less than 2 because we have two spheres
+             t = checkIntersectSphere(spheres[i], ray);
+             if (t > 0.0 && t < minT) {
+                 minT = t;
+                 sphereToShow = spheres[i];
+             }
+         }
+
+         if(minT > 0.0 && minT < veryBigNum) {
+             Sphere sphere = sphereToShow;
+
+             vec3 sphereCenter = sphere.center;
+             vec3 colorOfSphere = sphere.color;
+             vec3 cameraSource = ray.origin;
+             vec3 cameraDirection = ray.direction;
+             vec3 lightSource = light.position;
+             float ambience = light.ambience;
+
+             vec3 surfacePoint = cameraSource + (minT * cameraDirection);
+             vec3 surfaceNormal = normalize(surfacePoint - sphereCenter);
+
+             // TODO
+             // if there is abn object blocking the light source
+                // color = color of sphere * ambient
+             // else do the following line
+             color = colorOfSphere * (ambience + ((1.0 - ambience) * max(0.0, dot(surfaceNormal, lightSource))));
+
+             Ray reflectionRay;
+
+             vec3 reflection = 2.0 * dot(-ray.direction, surfaceNormal) * surfaceNormal + ray.direction; // this is the reflection vector
+
+             reflectionRay.origin = surfaceNormal + 0.0001 * reflection;  // avoid z fighting
+             reflectionRay.direction = reflection;
+
+             // give to the ray tracer output struct
+             rayTracer.reflectionRay = reflectionRay;
+             rayTracer.color = color;
+
+         }
+         else {
+             color = vec3(0.0, 0.0, 0.0);
+             rayTracer.color = color;
+
+         }
+
+
+         return rayTracer;
+     }
+
+    void main() {
+        initialize();
+        RayTracerOutput mainRay = getRay(rays[0], light[0]);
+        RayTracerOutput reflectionRay = getRay(mainRay.reflectionRay, light[0]);
+
+
+        gl_FragColor = vec4(mainRay.color + reflectionRay.color, 1.0);
+   }
+</script>
+
+    <script src="lib/webgl-utils.js"></script>
+    <script src="lib/initShaders.js"></script>
+    <script src="lib/MV.js"></script>
+
+    <script src="main.js"></script>
+
+</head>
+
+<body onload="main()">
+
+<canvas id="webgl" width="400" height="400">
+    Please use a browser that supports the "canvas" tag.
+</canvas>
+
+</body>
+</html>
