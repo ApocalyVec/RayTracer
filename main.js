@@ -45,7 +45,7 @@ function main()
     gl.vertexAttribPointer(gl.aPosition, 3, gl.FLOAT, false, 0, 0);
 
     // user inputs
-    let sceneNum = 3.0;
+    let sceneNum = 2.0;
     gl.uniform1f(gl.getUniformLocation(program, "sceneNum"), sceneNum);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
