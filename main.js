@@ -43,5 +43,30 @@ function main()
     gl.aPosition = gl.getAttribLocation(program, "aPosition");
     gl.enableVertexAttribArray(gl.aPosition);
     gl.vertexAttribPointer(gl.aPosition, 3, gl.FLOAT, false, 0, 0);
+
+    // user inputs
+    let sceneNum = 2.0;
+    gl.uniform1f(gl.getUniformLocation(program, "sceneNum"), sceneNum);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    window.addEventListener("keypress", function(e) {
+        if (e.key === '1') {
+            sceneNum = 1.0;
+            gl.uniform1f(gl.getUniformLocation(program, "sceneNum"), sceneNum);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+        }
+        if (e.key === '2') {
+            sceneNum = 2.0;
+            gl.uniform1f(gl.getUniformLocation(program, "sceneNum"), sceneNum);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+        }
+        if (e.key === '3') {
+            sceneNum = 1.0;
+            gl.uniform1f(gl.getUniformLocation(program, "sceneNum"), sceneNum);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        }
+    });
 }
+
