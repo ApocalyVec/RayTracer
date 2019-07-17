@@ -193,32 +193,6 @@
         return t;
     }
 
-//    float checkIntersectTPlane(TrianglePlane tPlane, Ray ray) {
-//        vec3 v0 = tPlane.v1;
-//        vec3 v1 = tPlane.v2;
-//        vec3 v2 = tPlane.v3;
-//
-//        vec3 orig = ray.origin;
-//        vec3 dir = ray.direction;
-//
-//        // computer the lpane's normal
-//        vec3 v0v1 = v1 - v0;
-//        vec3 v0v2 = v2 - v0;
-//        // do not normalize
-//        vec3 N = v0v1 * v0v2;
-//
-//        float denom = dot(N, dir);
-//        if (denom > verySmallNum) {
-//            vec3 p0l0 = v0 - orig;
-//            float t = dot(p0l0, N) / denom;
-//            if (t >= 0.0) {
-//                return t;
-//            }
-//        }
-//
-//        return veryBigNum;
-//    }
-
     const float sphereShininess = 20.0;
     const float planeShininess = 1e10;
 
