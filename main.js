@@ -63,7 +63,7 @@ function main()
 
         }
         if (e.key === '3') {
-            sceneNum = 1.0;
+            sceneNum = 3.0;
             gl.uniform1f(gl.getUniformLocation(program, "sceneNum"), sceneNum);
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
         }
