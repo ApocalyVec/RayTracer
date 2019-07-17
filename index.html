@@ -70,7 +70,7 @@
 
         if (fsceneNum == 1.0) {
             bounceNum = 2;
-            reflectDecay = 0.5;
+            reflectDecay = 0.2;
 
             float x = vPosition.x; // pixel positions x
             float y = vPosition.y; // pixel positions y
@@ -87,11 +87,6 @@
             spheres[1].center = vec3(.3, .2, -.4);
             spheres[1].radius = 0.2;
             spheres[1].color = vec3(0.0, 1.0, 0.0);
-
-            // create a third sphere
-            //        spheres[2].center = vec3(0.9, 0.0, 0.8);
-            //        spheres[2].radius = 0.2;
-            //        spheres[2].color = vec3(0.0, 0.0, 1.0);
 
             // create plane
             tPlanes[0].v1 = vec3(2.0, .0, 2.0);
@@ -139,7 +134,7 @@
             // the forth sphere
             spheres[3].center = vec3(spherePos, -spherePos, .5);
             spheres[3].radius = sphereRad;
-            spheres[3].color = vec3(0.2, 0.2, .2);
+            spheres[3].color = vec3(0.0, 0.0, 1.0);
 
             // Create ray
             rays[0].origin = vec3(.0, .0, focalLength);
@@ -156,37 +151,54 @@
             float x = vPosition.x; // pixel positions x
             float y = vPosition.y; // pixel positions y
             float z = vPosition.z; // pixel positions z
-            float focalLength = 1.5;
+            float focalLength = 2.0;
             vec3 color = vec3(0.0, 0.0, 0.0);
 
             // Create spheres
-            spheres[0].center = vec3(-.1, -.5, 0);
+            spheres[0].center = vec3(-.1, .5, 0);
             spheres[0].radius = 0.2;
             spheres[0].color = vec3(1.0, 0.0, 0.0);
 
             // create a second sphere
-            spheres[1].center = vec3(.3, -.5, -.4);
+            spheres[1].center = vec3(.3, .5, -.4);
             spheres[1].radius = 0.2;
             spheres[1].color = vec3(0.0, 1.0, 0.0);
 
-            // create a third sphere
-            //        spheres[2].center = vec3(0.9, 0.0, 0.8);
-            //        spheres[2].radius = 0.2;
-            //        spheres[2].color = vec3(0.0, 0.0, 1.0);
-
             // create plane
-            tPlanes[0].v1 = vec3(2.0, .0, 2.0);
-            tPlanes[0].v2 = vec3(-2.0, .0, 2.0);
-            tPlanes[0].v3 = vec3(0.0, .0, -2.0);
 
+            // bottom planes
+            tPlanes[0].v1 = vec3(1.0, .2, 1.0);
+            tPlanes[0].v2 = vec3(-1.0, .2, 1.0);
+            tPlanes[0].v3 = vec3(-1.0, .2, -1.0);
             tPlanes[0].color = vec3(0.0, 0.0, 1.0);
 
+            tPlanes[1].v1 = vec3(1.0, .2, 1.0);
+            tPlanes[1].v2 = vec3(-1.0, .2, -1.0);
+            tPlanes[1].v3 = vec3(1.0, .2, -1.0);
+            tPlanes[1].color = vec3(0.0, 1.0, 1.0);
+
+            // left plane
+//            tPlanes[1].v1 = vec3(2.0, 1.0, -2.0);
+//            tPlanes[1].v3 = vec3(2.0, 1.0, 2.0);
+//            tPlanes[1].v2 = vec3(2.0, -1.0, -2.0);
+//            tPlanes[1].color = vec3(1.0, 0.0, 1.0);
+//
+            // back plane
+//            tPlanes[2].v1 = vec3(1.0, 0.0, -1.0);
+//            tPlanes[2].v2 = vec3(-1.0, .2, -1.0);
+//            tPlanes[2].v3 = vec3(1.0, .2, -1.0);
+//            tPlanes[2].color = vec3(1.0, 1.0, 0.0);
+//            tPlanes[2].v1 = vec3(1.0, 0.0, -1.0);
+//            tPlanes[2].v2 = vec3(-1.0, .2, -1.0);
+//            tPlanes[2].v3 = vec3(1.0, .2, -1.0);
+//            tPlanes[2].color = vec3(1.0, 1.0, 0.0);
+
             // Create ray
-            rays[0].origin = vec3(.0, .0, focalLength);
+            rays[0].origin = vec3(.0, .3, focalLength);
             rays[0].direction = normalize(vec3(x, y, -focalLength));
 
             // Create Light source
-            light[0].position = vec3(-2.0, 2.0, 2.0);
+            light[0].position = vec3(-0.0, 2.0, 2.0);
             light[0].ambience = 0.3;
         }
     }
@@ -196,7 +208,9 @@
 
     vec3 lightColor = vec3(1.0);
 
-    float checkIntersectSphere(Sphere sphere, Ray ray) {
+    bool checkIntersectSphere(Sphere sphere, Ray ray, out float t) {
+        t = veryBigNum;
+
         vec3 sphereCenter = sphere.center;
         float radius = sphere.radius;
         vec3 cameraSource = ray.origin;
@@ -206,7 +220,6 @@
         float B = 2.0 * dot(cameraDirection, distanceFromCenter);
         float C = dot(distanceFromCenter, distanceFromCenter) - pow(radius, 2.0);
         float delta = pow(B, 2.0) - 4.0 * C;
-        float t = 0.0;
         if (delta > 0.0) {
             float sqRoot = sqrt(delta);
             float t1 = (-B + sqRoot) / 2.0;
@@ -217,7 +230,12 @@
             t = -B / 2.0;
         }
 
-        return t;
+        if (t > 0.0 && t < veryBigNum) {
+            return true;
+        }
+        else {
+            return false;
+        }
     }
 
     vec3 newell(vec3 v1, vec3 v2, vec3 v3) {
@@ -236,12 +254,16 @@
         (v3[0] - v1[0]) * (v3[1] + v1[1]);
 
         vec3 normal = normalize(vec3(n1, n2, n3));
+//        vec3 normal = vec3(n1, n2, n3);
+
         return normal;
     }
 
     // adopted from
     // https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/ray-triangle-intersection-geometric-solution
-    float checkIntersectTPlane(TrianglePlane tPlane, Ray ray) {
+    bool checkIntersectTPlane(TrianglePlane tPlane, Ray ray, out float t) {
+        t = veryBigNum;
+
         vec3 v0 = tPlane.v1;
         vec3 v1 = tPlane.v2;
         vec3 v2 = tPlane.v3;
@@ -253,41 +275,30 @@
         vec3 N = newell(v0, v1, v2);
         // check if the ray and the plane are parallel
         float NdotRayDirection = dot(N, dir);
-        if(NdotRayDirection < verySmallNum) return veryBigNum;  // the ray and the plane does not intersect because they are parallel
+        if(abs(NdotRayDirection) < verySmallNum) return false;  // the ray and the plane does not intersect because they are parallel
 
         // compute d
-        float d = dot(N, normalize(v1)); // distance from the origin to the plane
+        float d = dot(N, v0); // distance from the origin to the plane
         //compute t
-        float t = -(dot(N, orig) + d) / NdotRayDirection;
+        t = - (dot(N, orig) + d) / NdotRayDirection;
 
         //check if the triangle is behind the ray
-        if (t < 0.0) return veryBigNum;  // the triangle is behind
+        if (t < 0.0) return false;  // the triangle is behind
 
         //compute the intersection point
         vec3 P = orig + t * dir;
 
         // inside-outside test
-        vec3 C; // vec perpendicular to the triangle's plane
-
-        //edge 0
         vec3 edge0 = v1 - v0;
-        vec3 vp0 = P - v0;
-        C = edge0 * vp0;
-        if (dot(N, C) < 0.0) return veryBigNum;
-
-        //edge 1
         vec3 edge1 = v2 - v1;
-        vec3 vp1 = P - v1;
-        C = edge1 * vp1;
-        if(dot(N, C) < 0.0) return veryBigNum;
-
-        //edge 2
         vec3 edge2 = v0 - v2;
-        vec3 vp2 = P -v2;
-        C = edge2 * vp2;
-        if(dot(N, C) < 0.0) return veryBigNum;
-
-        return t;
+        vec3 C0 = P - v0;
+        vec3 C1 = P - v1;
+        vec3 C2 = P - v2;
+        if (dot(N, cross(edge0, C0)) > 0.0 &&
+        dot(N, cross(edge1, C1)) > 0.0 &&
+        dot(N, cross(edge2, C2)) > 0.0) return true;
+        else return false;
     }
 
     const float sphereShininess = 20.0;
@@ -295,7 +306,7 @@
 
     bool checkIntersect(Ray ray, out float minT, out vec3 surfacePoint, out vec3 surfaceNormal,
     out vec3 cameraSource, out vec3 cameraDirection, out vec3 objColor, out float shininess) {
-        float t = 0.0;
+        float t;
         float sphereMinT = veryBigNum;
         float planeMinT = veryBigNum;
         minT =  veryBigNum;
@@ -308,18 +319,16 @@
 
         // check sphere intersection
         for(int i = 0; i < objNum; i++) {
-            t = checkIntersectSphere(spheres[i], ray);
 
-            if (t > 0.0 && t < minT) {
+            if (checkIntersectSphere(spheres[i], ray, t)) {
                 sphereMinT = t;
                 sphereToShow = spheres[i];
             }
         }
         //check plane intersection
         for(int i = 0; i < objNum; i++) {
-            t = checkIntersectTPlane(tPlanes[i], ray);
 
-            if (t > 0.0 && t < minT) {
+            if (checkIntersectTPlane(tPlanes[i], ray, t)) {
                 planeMinT = t;
                 planeToShow = tPlanes[i];
             }
@@ -343,7 +352,7 @@
             if(minT > 0.0 && minT < veryBigNum) {
                 objColor = planeToShow.color;
                 surfacePoint = cameraSource + (minT * cameraDirection);
-                surfaceNormal = -newell(planeToShow.v1, planeToShow.v2, planeToShow.v3);
+                surfaceNormal = -normalize(newell(planeToShow.v1, planeToShow.v2, planeToShow.v3));
                 shininess = planeShininess;
                 return true;
             }
@@ -362,17 +371,15 @@
 
         // check sphere intersection
         for(int i = 0; i < objNum; i++) {
-            t = checkIntersectSphere(spheres[i], ray);
 
-            if (t > 0.0 && t < minT) {
+            if (checkIntersectSphere(spheres[i], ray, t)) {
                 sphereMinT = t;
             }
         }
         //check plane intersection
         for(int i = 0; i < objNum; i++) {
-            t = checkIntersectTPlane(tPlanes[i], ray);
 
-            if (t > 0.0 && t < minT) {
+            if (checkIntersectTPlane(tPlanes[i], ray, t)) {
                 planeMinT = t;
             }
         }
