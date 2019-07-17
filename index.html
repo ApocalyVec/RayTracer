@@ -64,9 +64,55 @@
     Ray rays[1];
     Light light[1];
 
+    int bounceNum;
+    float reflectDecay;
+
     void initialize() {
 
-        if (fsceneNum == 2.0) {
+        if (fsceneNum == 1.0) {
+            bounceNum = 2;
+            reflectDecay = 0.5;
+
+            float x = vPosition.x; // pixel positions x
+            float y = vPosition.y; // pixel positions y
+            float z = vPosition.z; // pixel positions z
+            float focalLength = 1.5;
+            vec3 color = vec3(0.0, 0.0, 0.0);
+
+            // Create spheres
+            spheres[0].center = vec3(-.1, .2, 0);
+            spheres[0].radius = 0.2;
+            spheres[0].color = vec3(1.0, 0.0, 0.0);
+
+            // create a second sphere
+            spheres[1].center = vec3(.3, .2, -.4);
+            spheres[1].radius = 0.2;
+            spheres[1].color = vec3(0.0, 1.0, 0.0);
+
+            // create a third sphere
+            //        spheres[2].center = vec3(0.9, 0.0, 0.8);
+            //        spheres[2].radius = 0.2;
+            //        spheres[2].color = vec3(0.0, 0.0, 1.0);
+
+            // create plane
+            tPlanes[0].v1 = vec3(2.0, .0, 2.0);
+            tPlanes[0].v2 = vec3(-2.0, .0, 2.0);
+            tPlanes[0].v3 = vec3(0.0, .0, -2.0);
+
+            tPlanes[0].color = vec3(0.0, 0.0, 1.0);
+
+            // Create ray
+            rays[0].origin = vec3(.2, .3, focalLength);
+            rays[0].direction = normalize(vec3(x, y, -focalLength));
+
+            // Create Light source
+            light[0].position = vec3(-2.0, 2.0, 2.0);
+            light[0].ambience = 0.3;
+        }
+        else if (fsceneNum == 2.0) {
+            bounceNum = 5;
+            reflectDecay = 0.9;
+
             float x = vPosition.x; // pixel positions x
             float y = vPosition.y; // pixel positions y
             float z = vPosition.z; // pixel positions z
@@ -299,10 +345,6 @@
         else return false;
     }
 
-
-    const int bounceNum = 10;
-    const float reflectDecay = 0.9;
-
     vec3 getRay(Ray ray, Light light) {
          RayTracerOutput rayTracer;
 
@@ -323,7 +365,11 @@
          Ray curRay = ray;
          vec3 accumColor = vec3(0.0);
 
-         for (int i = 0; i < bounceNum; i ++) {
+        const int numBounces = 100;
+
+         for (int i = 0; i < numBounces; i ++) {
+             if (i > bounceNum-1) break;
+
              if(checkIntersect(curRay, minT, surfacePoint, surfaceNormal, cameraSource, cameraDirection, objColor, shininess)) {
 
                  // deal with reflection
