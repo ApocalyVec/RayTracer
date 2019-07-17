@@ -36,6 +36,7 @@
         vec3 v1;
         vec3 v2;
         vec3 v3;
+        vec3 normal;
         vec3 color;
     };
 
@@ -66,6 +67,26 @@
     Sphere spheres[objNum];
     TrianglePlane tPlanes[objNum];
 
+    vec3 newell(vec3 v1, vec3 v2, vec3 v3) {
+        float n1, n2, n3;
+
+        n1 = (v1[1] - v2[1]) * (v1[2] + v2[2]) +
+        (v2[1] - v3[1]) * (v2[2] + v3[2]) +
+        (v3[1] - v1[1]) * (v3[2] + v1[2]);
+
+        n2 = (v1[2] - v2[2]) * (v1[0] + v2[0]) +
+        (v2[2] - v3[2]) * (v2[0] + v3[0]) +
+        (v3[2] - v1[2]) * (v3[0] + v1[0]);
+
+        n3 = (v1[0] - v2[0]) * (v1[1] + v2[1]) +
+        (v2[0] - v3[0]) * (v2[1] + v3[1]) +
+        (v3[0] - v1[0]) * (v3[1] + v1[1]);
+
+        vec3 normal = normalize(vec3(n1, n2, n3));
+
+        return normal;
+    }
+
     void initialize() {
 
         if (fsceneNum == 1.0) {
@@ -93,11 +114,13 @@
             tPlanes[0].v1 = vec3(2.0, -.6, 2.0);
             tPlanes[0].v2 = vec3(-2.0, -.6, 2.0);
             tPlanes[0].v3 = vec3(-2.0, -.6, -2.0);
+            tPlanes[0].normal = -newell(tPlanes[0].v1, tPlanes[0].v2, tPlanes[0].v3);
             tPlanes[0].color = vec3(0.0, 0.0, 1.0);
 
             tPlanes[1].v1 = vec3(2.0, -.6, 2.0);
             tPlanes[1].v2 = vec3(-2.0, -.6, -2.0);
             tPlanes[1].v3 = vec3(2.0, -.6, -2.0);
+            tPlanes[1].normal = -newell(tPlanes[1].v1, tPlanes[1].v2, tPlanes[1].v3);
             tPlanes[1].color = vec3(0.0, 0.0, 1.0);
 
             // Create ray
@@ -175,24 +198,26 @@
             tPlanes[0].v1 = vec3(1.0, -.8, 1.0);
             tPlanes[0].v2 = vec3(-1.0, -.8, 1.0);
             tPlanes[0].v3 = vec3(-1.0, -.8, -1.0);
+            tPlanes[0].normal = -newell(tPlanes[0].v1, tPlanes[0].v2, tPlanes[0].v3);
             tPlanes[0].color = vec3(0.0, 0.0, 1.0);
 
             tPlanes[1].v1 = vec3(1.0, -.8, 1.0);
             tPlanes[1].v2 = vec3(-1.0, -.8, -1.0);
             tPlanes[1].v3 = vec3(1.0, -.8, -1.0);
+            tPlanes[1].normal = -newell(tPlanes[1].v1, tPlanes[1].v2, tPlanes[1].v3);
             tPlanes[1].color = vec3(0.0, 1.0, 1.0);
 
-            // left plane
-//            tPlanes[2].v1 = vec3(1.0, .2, -1.0);
-//            tPlanes[2].v3 = vec3(1.0, .2, 1.0);
-//            tPlanes[2].v2 = vec3(1.0, -.2, -1.0);
-//            tPlanes[2].color = vec3(1.0, 0.0, 1.0);
-//
             // back plane
             tPlanes[2].v1 = vec3(1.0, 0.8, -1.0);
             tPlanes[2].v2 = vec3(-1.0, -.8, -1.0);
             tPlanes[2].v3 = vec3(1.0, -.8, -1.0);
+            tPlanes[2].normal = newell(tPlanes[2].v1, tPlanes[2].v2, tPlanes[2].v3);
             tPlanes[2].color = vec3(1.0, 1.0, 0.0);
+
+//            tPlanes[3].v1 = vec3(1.0, 0.8, -1.0);
+//            tPlanes[3].v2 = vec3(1.0, .8, -1.0);
+//            tPlanes[3].v3 = vec3(1.0, -.8, -1.0);
+//            tPlanes[3].color = vec3(1.0, 1.0, 0.5);
 
             // Create ray
             rays[0].origin = vec3(.0, .3, focalLength);
@@ -239,25 +264,6 @@
         }
     }
 
-    vec3 newell(vec3 v1, vec3 v2, vec3 v3) {
-        float n1, n2, n3;
-
-        n1 = (v1[1] - v2[1]) * (v1[2] + v2[2]) +
-        (v2[1] - v3[1]) * (v2[2] + v3[2]) +
-        (v3[1] - v1[1]) * (v3[2] + v1[2]);
-
-        n2 = (v1[2] - v2[2]) * (v1[0] + v2[0]) +
-        (v2[2] - v3[2]) * (v2[0] + v3[0]) +
-        (v3[2] - v1[2]) * (v3[0] + v1[0]);
-
-        n3 = (v1[0] - v2[0]) * (v1[1] + v2[1]) +
-        (v2[0] - v3[0]) * (v2[1] + v3[1]) +
-        (v3[0] - v1[0]) * (v3[1] + v1[1]);
-
-        vec3 normal = vec3(n1, n2, n3);
-
-        return normal;
-    }
 
     // adopted from
     // https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/ray-triangle-intersection-geometric-solution
@@ -272,7 +278,11 @@
         vec3 dir = ray.direction;
 
         // computer the pane's normal
-        vec3 N = newell(v0, v1, v2);
+        vec3 v0v1 = v1 - v0;
+        vec3 v0v2 = v2 - v0;
+        // no need to normalize
+        vec3 N = cross(v0v1, v0v2);
+
         // check if the ray and the plane are parallel
         float NdotRayDirection = dot(N, dir);
         if(abs(NdotRayDirection) < verySmallNum) return false;  // the ray and the plane does not intersect because they are parallel
@@ -352,7 +362,7 @@
             if(minT > 0.0 && minT < veryBigNum) {
                 objColor = planeToShow.color;
                 surfacePoint = cameraSource + (minT * cameraDirection);
-                surfaceNormal = -normalize(newell(planeToShow.v1, planeToShow.v2, planeToShow.v3));
+                surfaceNormal = normalize(planeToShow.normal);
                 shininess = planeShininess;
                 return true;
             }
@@ -406,7 +416,7 @@
         const int numBounces = 100;
 
          for (int i = 0; i < numBounces; i ++) {
-             if (i > bounceNum-1) break;
+             if (i >= bounceNum) break;
 
              if(checkIntersect(curRay, minT, surfacePoint, surfaceNormal, cameraSource, cameraDirection, objColor, shininess)) {
 
@@ -432,9 +442,9 @@
                      accumColor = accumColor + lightColor * specular;
                  }
              }
-             else {  // the ray did not hit anything
-                 break;
-             }
+//             else {  // the ray did not hit anything
+//                 break;
+//             }
 
              // continue with the reflected ray
              curRay = reflectionRay;
