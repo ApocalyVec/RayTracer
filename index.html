@@ -89,11 +89,16 @@
             spheres[1].color = vec3(0.0, 1.0, 0.0);
 
             // create plane
-            tPlanes[0].v1 = vec3(2.0, .0, 2.0);
-            tPlanes[0].v2 = vec3(-2.0, .0, 2.0);
-            tPlanes[0].v3 = vec3(0.0, .0, -2.0);
 
+            tPlanes[0].v1 = vec3(2.0, -.6, 2.0);
+            tPlanes[0].v2 = vec3(-2.0, -.6, 2.0);
+            tPlanes[0].v3 = vec3(-2.0, -.6, -2.0);
             tPlanes[0].color = vec3(0.0, 0.0, 1.0);
+
+            tPlanes[1].v1 = vec3(2.0, -.6, 2.0);
+            tPlanes[1].v2 = vec3(-2.0, -.6, -2.0);
+            tPlanes[1].v3 = vec3(2.0, -.6, -2.0);
+            tPlanes[1].color = vec3(0.0, 0.0, 1.0);
 
             // Create ray
             rays[0].origin = vec3(.2, .3, focalLength);
@@ -155,50 +160,46 @@
             vec3 color = vec3(0.0, 0.0, 0.0);
 
             // Create spheres
-            spheres[0].center = vec3(-.1, .5, 0);
+            spheres[0].center = vec3(-.1, .0, 0);
             spheres[0].radius = 0.2;
             spheres[0].color = vec3(1.0, 0.0, 0.0);
 
             // create a second sphere
-            spheres[1].center = vec3(.3, .5, -.4);
+            spheres[1].center = vec3(.3, .0, -.4);
             spheres[1].radius = 0.2;
             spheres[1].color = vec3(0.0, 1.0, 0.0);
 
             // create plane
 
             // bottom planes
-            tPlanes[0].v1 = vec3(1.0, .2, 1.0);
-            tPlanes[0].v2 = vec3(-1.0, .2, 1.0);
-            tPlanes[0].v3 = vec3(-1.0, .2, -1.0);
+            tPlanes[0].v1 = vec3(1.0, -.8, 1.0);
+            tPlanes[0].v2 = vec3(-1.0, -.8, 1.0);
+            tPlanes[0].v3 = vec3(-1.0, -.8, -1.0);
             tPlanes[0].color = vec3(0.0, 0.0, 1.0);
 
-            tPlanes[1].v1 = vec3(1.0, .2, 1.0);
-            tPlanes[1].v2 = vec3(-1.0, .2, -1.0);
-            tPlanes[1].v3 = vec3(1.0, .2, -1.0);
+            tPlanes[1].v1 = vec3(1.0, -.8, 1.0);
+            tPlanes[1].v2 = vec3(-1.0, -.8, -1.0);
+            tPlanes[1].v3 = vec3(1.0, -.8, -1.0);
             tPlanes[1].color = vec3(0.0, 1.0, 1.0);
 
             // left plane
-//            tPlanes[1].v1 = vec3(2.0, 1.0, -2.0);
-//            tPlanes[1].v3 = vec3(2.0, 1.0, 2.0);
-//            tPlanes[1].v2 = vec3(2.0, -1.0, -2.0);
-//            tPlanes[1].color = vec3(1.0, 0.0, 1.0);
+//            tPlanes[2].v1 = vec3(1.0, .2, -1.0);
+//            tPlanes[2].v3 = vec3(1.0, .2, 1.0);
+//            tPlanes[2].v2 = vec3(1.0, -.2, -1.0);
+//            tPlanes[2].color = vec3(1.0, 0.0, 1.0);
 //
             // back plane
-//            tPlanes[2].v1 = vec3(1.0, 0.0, -1.0);
-//            tPlanes[2].v2 = vec3(-1.0, .2, -1.0);
-//            tPlanes[2].v3 = vec3(1.0, .2, -1.0);
-//            tPlanes[2].color = vec3(1.0, 1.0, 0.0);
-//            tPlanes[2].v1 = vec3(1.0, 0.0, -1.0);
-//            tPlanes[2].v2 = vec3(-1.0, .2, -1.0);
-//            tPlanes[2].v3 = vec3(1.0, .2, -1.0);
-//            tPlanes[2].color = vec3(1.0, 1.0, 0.0);
+            tPlanes[2].v1 = vec3(1.0, 0.8, -1.0);
+            tPlanes[2].v2 = vec3(-1.0, -.8, -1.0);
+            tPlanes[2].v3 = vec3(1.0, -.8, -1.0);
+            tPlanes[2].color = vec3(1.0, 1.0, 0.0);
 
             // Create ray
             rays[0].origin = vec3(.0, .3, focalLength);
             rays[0].direction = normalize(vec3(x, y, -focalLength));
 
             // Create Light source
-            light[0].position = vec3(-0.0, 2.0, 2.0);
+            light[0].position = vec3(0.0, 2.0, 2.0);
             light[0].ambience = 0.3;
         }
     }
@@ -253,8 +254,7 @@
         (v2[0] - v3[0]) * (v2[1] + v3[1]) +
         (v3[0] - v1[0]) * (v3[1] + v1[1]);
 
-        vec3 normal = normalize(vec3(n1, n2, n3));
-//        vec3 normal = vec3(n1, n2, n3);
+        vec3 normal = vec3(n1, n2, n3);
 
         return normal;
     }
@@ -280,7 +280,7 @@
         // compute d
         float d = dot(N, v0); // distance from the origin to the plane
         //compute t
-        t = - (dot(N, orig) + d) / NdotRayDirection;
+        t = (dot(N, orig) + d) / NdotRayDirection;
 
         //check if the triangle is behind the ray
         if (t < 0.0) return false;  // the triangle is behind
@@ -365,29 +365,22 @@
         float minT;
 
         float t = 0.0;
-        float sphereMinT = veryBigNum;
-        float planeMinT = veryBigNum;
+
+        bool isIntersect = false;
+
         minT =  veryBigNum;
 
         // check sphere intersection
         for(int i = 0; i < objNum; i++) {
+            isIntersect = isIntersect || checkIntersectSphere(spheres[i], ray, t);
 
-            if (checkIntersectSphere(spheres[i], ray, t)) {
-                sphereMinT = t;
-            }
         }
         //check plane intersection
         for(int i = 0; i < objNum; i++) {
-
-            if (checkIntersectTPlane(tPlanes[i], ray, t)) {
-                planeMinT = t;
-            }
+            isIntersect = isIntersect || checkIntersectTPlane(tPlanes[i], ray, t);
         }
 
-        if (planeMinT < veryBigNum || sphereMinT < veryBigNum) {
-            return true;
-        }
-        else return false;
+        return isIntersect;
     }
 
     vec3 getRay(Ray ray, Light light) {
@@ -438,10 +431,8 @@
                      accumColor = accumColor + objColor * (ambience + (1.0 - ambience) * diffuse * pow(reflectDecay, float(i)));
                      accumColor = accumColor + lightColor * specular;
                  }
-
              }
              else {  // the ray did not hit anything
-                 accumColor = accumColor + vec3(0.0, 0.0, 0.0);
                  break;
              }
 
