@@ -60,17 +60,17 @@
         float x = vPosition.x; // pixel positions x
         float y = vPosition.y; // pixel positions y
         float z = vPosition.z; // pixel positions z
-        float focalLength = 2.0;
+        float focalLength = 1.5;
         vec3 color = vec3(0.0, 0.0, 0.0);
 
         // Create spheres
-        spheres[0].center = vec3(-.1, 0, 0);
-        spheres[0].radius = 0.3;
+        spheres[0].center = vec3(-.1, .2, 0);
+        spheres[0].radius = 0.2;
         spheres[0].color = vec3(1.0, 0.0, 0.0);
 
         // create a second sphere
-        spheres[1].center = vec3(.6, 0.0, -.4);
-        spheres[1].radius = 0.3;
+        spheres[1].center = vec3(.3, .2, -.4);
+        spheres[1].radius = 0.2;
         spheres[1].color = vec3(0.0, 1.0, 0.0);
 
         // create a third sphere
@@ -79,34 +79,18 @@
 //        spheres[2].color = vec3(0.0, 0.0, 1.0);
 
         // create plane
-        tPlanes[0].v1 = vec3(2.0, .9, 2.0);
-        tPlanes[0].v2 = vec3(-2.0, .9, 2.0);
-        tPlanes[0].v3 = vec3(0.0, .9, -2.0);
-
-//        tPlanes[0].v1 = vec3(0, 2.0, 2.0);
-//        tPlanes[0].v3 = vec3(0, -2.0, 2.0);
-//        tPlanes[0].v2 = vec3(0, 0.0, -2.0);
-//
-//        tPlanes[0].v1 = vec3(1.0, 1.0, -.5);
-//        tPlanes[0].v2 = vec3(-1.0, 1.0, -.5);
-//        tPlanes[0].v3 = vec3(0.0, -1.0, -.5);
-
-//        tPlanes[0].v1 = vec3(1.0, 1.0, 1.0);
-//        tPlanes[0].v2 = vec3(1.0, 1.0, 1.0);
-//        tPlanes[0].v3 = vec3(-1.0, -1.0, -1.0);
-
-//        tPlanes[0].v1 = vec3(0, 0.8, 0.0);
-//        tPlanes[0].v3 = vec3(0.8, 0.0, 0.0);
-//        tPlanes[0].v2 = vec3(-0.8, 0.0, 0.0);
+        tPlanes[0].v1 = vec3(2.0, .0, 2.0);
+        tPlanes[0].v2 = vec3(-2.0, .0, 2.0);
+        tPlanes[0].v3 = vec3(0.0, .0, -2.0);
 
         tPlanes[0].color = vec3(0.0, 0.0, 1.0);
 
         // Create ray
-        rays[0].origin = vec3(0.0, 0.0, focalLength);
+        rays[0].origin = vec3(.2, .3, focalLength);
         rays[0].direction = normalize(vec3(x, y, -focalLength));
 
         // Create Light source
-        light[0].position = vec3(-1.0, 1.0, 1.0);
+        light[0].position = vec3(-2.0, 2.0, 2.0);
         light[0].ambience = 0.3;
     }
 
@@ -114,8 +98,6 @@
     const float verySmallNum = 1e-23;
 
     vec3 lightColor = vec3(1.0);
-    float shininess = 20.0;
-
 
     float checkIntersectSphere(Sphere sphere, Ray ray) {
         vec3 sphereCenter = sphere.center;
@@ -237,9 +219,11 @@
 //        return veryBigNum;
 //    }
 
+    const float sphereShininess = 20.0;
+    const float planeShininess = 1e10;
 
-
-    bool checkIntersect(Ray ray, out float minT, out vec3 surfacePoint, out vec3 surfaceNormal, out vec3 cameraSource, out vec3 cameraDirection, out vec3 objColor) {
+    bool checkIntersect(Ray ray, out float minT, out vec3 surfacePoint, out vec3 surfaceNormal,
+    out vec3 cameraSource, out vec3 cameraDirection, out vec3 objColor, out float shininess) {
         float t = 0.0;
         float sphereMinT = veryBigNum;
         float planeMinT = veryBigNum;
@@ -278,6 +262,8 @@
                 objColor = sphereToShow.color;
                 surfacePoint = cameraSource + (minT * cameraDirection);
                 surfaceNormal = normalize(surfacePoint - sphereCenter);
+                shininess = sphereShininess;
+
                 return true;
             }
         }
@@ -287,12 +273,45 @@
                 objColor = planeToShow.color;
                 surfacePoint = cameraSource + (minT * cameraDirection);
                 surfaceNormal = -newell(planeToShow.v1, planeToShow.v2, planeToShow.v3);
+                shininess = planeShininess;
                 return true;
             }
         }
 
         return false;
     }
+
+    bool checkIntersectShadow(Ray ray) {
+        float minT;
+
+        float t = 0.0;
+        float sphereMinT = veryBigNum;
+        float planeMinT = veryBigNum;
+        minT =  veryBigNum;
+
+        // check sphere intersection
+        for(int i = 0; i < sphereNum; i++) {
+            t = checkIntersectSphere(spheres[i], ray);
+
+            if (t > 0.0 && t < minT) {
+                sphereMinT = t;
+            }
+        }
+        //check plane intersection
+        for(int i = 0; i < planeNum; i++) {
+            t = checkIntersectTPlane(tPlanes[i], ray);
+
+            if (t > 0.0 && t < minT) {
+                planeMinT = t;
+            }
+        }
+
+        if (planeMinT < veryBigNum || sphereMinT < veryBigNum) {
+            return true;
+        }
+        else return false;
+    }
+
 
     const int bounceNum = 2;
 
@@ -308,45 +327,41 @@
          vec3 surfaceNormal;
          vec3 cameraSource;
          vec3 cameraDirection;
+         float shininess;
 
          float veryBigNum = 1e38;
 
          Ray reflectionRay;
          Ray curRay = ray;
-         float reflectDecay = 0.5;
+         float reflectDecay = 0.3;
          vec3 accumColor = vec3(0.0);
 
          for (int i = 0; i < bounceNum; i ++) {
-             if(checkIntersect(curRay, minT, surfacePoint, surfaceNormal, cameraSource, cameraDirection, objColor)) {
+             if(checkIntersect(curRay, minT, surfacePoint, surfaceNormal, cameraSource, cameraDirection, objColor, shininess)) {
 
                  // deal with reflection
                  vec3 reflection = 2.0 * dot(-ray.direction, surfaceNormal) * surfaceNormal + ray.direction; // this is the reflection vector
                  reflectionRay.origin = surfacePoint + 0.0001 * reflection;  // avoid z fighting
                  reflectionRay.direction = reflection;
 
-                 vec3 lightDirection = normalize(lightSource  - surfaceNormal);
-
                  // check if the point is in shadow
-                 float rMinT;
-                 vec3 rSurfacePoint;
-                 vec3 rSurfaceNormal;
-                 vec3 rCameraSource;
-                 vec3 rCameraDirection;
-                 vec3 rObjColor;
 
-//                 Ray lightRay;
-//                 lightRay.origin = reflectionRay.origin;
-//                 lightRay.direction = lightDirection;
-//
-//                 if(checkIntersect(lightRay, rMinT, rSurfacePoint, rSurfaceNormal, rCameraSource, rCameraDirection, rObjColor)) {
-//                     accumColor = accumColor + objColor * ambience;
-//                 }
-//                 else {
+                 vec3 lightDirection = normalize(lightSource  - surfacePoint);
+
+
+                 Ray toLightRay;
+                 toLightRay.origin = reflectionRay.origin;
+                 toLightRay.direction = lightDirection;
+
+                 if(checkIntersectShadow(toLightRay)) {
+                     accumColor = accumColor + objColor * ambience;
+                 }
+                 else {
                      float specular = pow(max(dot(reflection, lightDirection), 0.0), shininess);
                      float diffuse = max(0.0, dot(surfaceNormal, lightSource));
                      accumColor = accumColor + objColor * (ambience + (1.0 - ambience) * diffuse * pow(reflectDecay, float(i)));
                      accumColor = accumColor + lightColor * specular;
-//                 }
+                 }
 
              }
              else {
