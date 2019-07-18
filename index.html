@@ -132,7 +132,7 @@
             light[0].ambience = 0.3;
         }
         else if (fsceneNum == 2.0) {
-            bounceNum = 5;
+            bounceNum = 3;
             reflectDecay = 0.9;
 
             float x = vPosition.x; // pixel positions x
@@ -410,19 +410,18 @@
          float veryBigNum = 1e38;
 
          Ray reflectionRay;
-         Ray curRay = ray;
          vec3 accumColor = vec3(0.0);
 
-        const int numBounces = 100;
+        const int numBounces = 5;
 
          for (int i = 0; i < numBounces; i ++) {
              if (i >= bounceNum) break;
 
-             if(checkIntersect(curRay, minT, surfacePoint, surfaceNormal, cameraSource, cameraDirection, objColor, shininess)) {
+             if(checkIntersect(ray, minT, surfacePoint, surfaceNormal, cameraSource, cameraDirection, objColor, shininess)) {
 
                  // deal with reflection
-                 vec3 reflectionDir = normalize(2.0 * dot(-ray.direction, surfaceNormal) * surfaceNormal + ray.direction); // this is the reflection vector
-                 reflectionRay.origin = surfacePoint + 0.0001 * reflectionDir;  // avoid z fighting
+                 vec3 reflectionDir = 2.0 * dot(-ray.direction, surfaceNormal) * surfaceNormal + ray.direction; // this is the reflection vector
+                 reflectionRay.origin = surfacePoint + 0.00001 * reflectionDir;  // avoid z fighting
                  reflectionRay.direction = reflectionDir;
 
                  vec3 lightDirection = normalize(lightSource  - surfacePoint);
@@ -447,7 +446,7 @@
 //             }
 
              // continue with the reflected ray
-             curRay = reflectionRay;
+             ray = reflectionRay;
          }
          return accumColor;
      }
@@ -470,7 +469,7 @@
 
 <body onload="main()">
 
-<canvas id="webgl" width="400" height="400">
+<canvas id="webgl" width="1000" height="1000">
     Please use a browser that supports the "canvas" tag.
 </canvas>
 
