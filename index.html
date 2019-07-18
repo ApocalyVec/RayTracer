@@ -133,7 +133,7 @@
         }
         else if (fsceneNum == 2.0) {
             bounceNum = 3;
-            reflectDecay = 0.9;
+            reflectDecay = 0.5;
 
             float x = vPosition.x; // pixel positions x
             float y = vPosition.y; // pixel positions y
@@ -412,7 +412,7 @@
          Ray reflectionRay;
          vec3 accumColor = vec3(0.0);
 
-        const int numBounces = 5;
+        const int numBounces = 100;
 
          for (int i = 0; i < numBounces; i ++) {
              if (i >= bounceNum) break;
