@@ -1,3 +1,5 @@
+// TODO extra: dynamically change the number of bounces
+
 var program;
 
 function main()
