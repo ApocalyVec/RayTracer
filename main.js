@@ -1,4 +1,5 @@
 // TODO extra: dynamically change the number of bounces
+// TODO extra: implement animation
 
 var program;
 

@@ -4,6 +4,15 @@
     <meta charset="utf-8" />
     <title>Ray Tracer</title>
 
+    <style>
+        canvas {
+            padding-left: 0;
+            padding-right: 0;
+            margin-left: auto;
+            margin-right: auto;
+            display: block;
+        }
+    </style>
 
 <script id="vshader" type="x-shader/x-vertex">
    attribute vec3 aPosition;
@@ -40,6 +49,12 @@
         vec3 color;
     };
 
+    struct Plane {
+        vec3 normal;
+        float p;
+        vec3 color;
+    };
+
     struct Ray {
         vec3 origin;
         vec3 direction;
@@ -60,12 +75,19 @@
     Light light[1];
 
     int bounceNum;
-    float reflectDecay;
 
     const int objNum = 10;
 
     Sphere spheres[objNum];
-    TrianglePlane tPlanes[objNum];
+    TrianglePlane triangles[objNum];
+    Plane planes[objNum];
+
+    float sphereAbsorbList[objNum];
+
+
+
+    const float triangleAbsorb = 0.5;
+    const float planeAbsorb = 1e-38;
 
     vec3 newell(vec3 v1, vec3 v2, vec3 v3) {
         float n1, n2, n3;
@@ -94,10 +116,13 @@
         vec3 color = vec3(0.0, 0.0, 0.0);
 
         if (fsceneNum == 1.0) {
+            // number of reflective boucnes for each ray
             bounceNum = 2;
-            reflectDecay = 0.2;
-
             float focalLength = 1.5;
+            // aobsorb factor for the spheres when reflecting
+            for (int i = 0; i < objNum; i ++) {
+                sphereAbsorbList[i] = 0.5;
+            }
 
             // Create spheres
             spheres[0].center = vec3(-.1, .2, 0);
@@ -110,17 +135,17 @@
             spheres[1].color = vec3(0.0, 1.0, 0.0);
 
             // create planes
-            tPlanes[0].v1 = vec3(2.0, -.6, 2.0);
-            tPlanes[0].v2 = vec3(-2.0, -.6, 2.0);
-            tPlanes[0].v3 = vec3(-2.0, -.6, -2.0);
-            tPlanes[0].normal = -newell(tPlanes[0].v1, tPlanes[0].v2, tPlanes[0].v3);
-            tPlanes[0].color = vec3(0.0, 0.0, 1.0);
+            triangles[0].v1 = vec3(2.0, -.6, 2.0);
+            triangles[0].v2 = vec3(-2.0, -.6, 2.0);
+            triangles[0].v3 = vec3(-2.0, -.6, -2.0);
+            triangles[0].normal = -newell(triangles[0].v1, triangles[0].v2, triangles[0].v3);
+            triangles[0].color = vec3(0.0, 0.0, 1.0);
 
-            tPlanes[1].v1 = vec3(2.0, -.6, 2.0);
-            tPlanes[1].v2 = vec3(-2.0, -.6, -2.0);
-            tPlanes[1].v3 = vec3(2.0, -.6, -2.0);
-            tPlanes[1].normal = -newell(tPlanes[1].v1, tPlanes[1].v2, tPlanes[1].v3);
-            tPlanes[1].color = vec3(0.0, 0.0, 1.0);
+            triangles[1].v1 = vec3(2.0, -.6, 2.0);
+            triangles[1].v2 = vec3(-2.0, -.6, -2.0);
+            triangles[1].v3 = vec3(2.0, -.6, -2.0);
+            triangles[1].normal = -newell(triangles[1].v1, triangles[1].v2, triangles[1].v3);
+            triangles[1].color = vec3(0.0, 0.0, 1.0);
 
             // Create ray
             rays[0].origin = vec3(.2, .3, focalLength);
@@ -132,7 +157,10 @@
         }
         else if (fsceneNum == 2.0) {
             bounceNum = 3;
-            reflectDecay = 0.5;
+            // aobsorb factor for the spheres when reflecting
+            for (int i = 0; i < objNum; i ++) {
+                sphereAbsorbList[i] = 0.6;
+            }
 
             float focalLength = 2.0;
 
@@ -164,58 +192,66 @@
             rays[0].direction = normalize(vec3(x, y, -focalLength));
 
             // Create Light source
-            light[0].position = vec3(0.0, 0.0, 1.5);
-            light[0].ambience = 0.3;
+            light[0].position = vec3(0.0, 0.0, 1.75);
+            light[0].ambience = 0.2;
         }
         else if (fsceneNum == 3.0) {
             bounceNum = 3;
-            reflectDecay = 0.5;
+            // aobsorb factor for the spheres when reflecting
+            for (int i = 0; i < objNum; i ++) {
+                sphereAbsorbList[i] = 0.6;
+            }
+            sphereAbsorbList[0] = 1e-10;  // the first sphere is completely reflective
+            sphereAbsorbList[1] = 0.99;
 
             float focalLength = 2.0;
 
             // Create spheres
-            spheres[0].center = vec3(-.1, .0, 0);
+            spheres[0].center = vec3(-.3, -.3, 0.0);
             spheres[0].radius = 0.2;
-            spheres[0].color = vec3(1.0, 0.0, 0.0);
+            spheres[0].color = vec3(0.0, 0.0, 0.0);
 
             // create a second sphere
-            spheres[1].center = vec3(.3, .0, -.4);
+            spheres[1].center = vec3(.3, -.3, 0.3);
             spheres[1].radius = 0.2;
             spheres[1].color = vec3(0.0, 1.0, 0.0);
 
             // create plane
-
-            // bottom planes
-            tPlanes[0].v1 = vec3(1.0, -.8, 1.0);
-            tPlanes[0].v2 = vec3(-1.0, -.8, 1.0);
-            tPlanes[0].v3 = vec3(-1.0, -.8, -1.0);
-            tPlanes[0].normal = -newell(tPlanes[0].v1, tPlanes[0].v2, tPlanes[0].v3);
-            tPlanes[0].color = vec3(0.0, 0.0, 1.0);
-
-            tPlanes[1].v1 = vec3(1.0, -.8, 1.0);
-            tPlanes[1].v2 = vec3(-1.0, -.8, -1.0);
-            tPlanes[1].v3 = vec3(1.0, -.8, -1.0);
-            tPlanes[1].normal = -newell(tPlanes[1].v1, tPlanes[1].v2, tPlanes[1].v3);
-            tPlanes[1].color = vec3(0.0, 0.0, 1.0);
-
+            // bottom plane
+            planes[0].normal = normalize(vec3(0.0, 1.0, 0.0));
+            planes[0].p = -.5;
+            planes[0].color = vec3(0.0, 0.0, 1.0);
             // back plane
-            tPlanes[2].v1 = vec3(1.0, 0.8, -1.0);
-            tPlanes[2].v2 = vec3(-1.0, -.8, -1.0);
-            tPlanes[2].v3 = vec3(1.0, -.8, -1.0);
-            tPlanes[2].normal = newell(tPlanes[2].v1, tPlanes[2].v2, tPlanes[2].v3);
-            tPlanes[2].color = vec3(1.0, 1.0, 0.0);
+            planes[1].normal = normalize(vec3(0.0, 0.0, 1.0));
+            planes[1].p = -.5;
+            planes[1].color = vec3(0.0, 1.0, 1.0);
+//
+//            //left plane
+            planes[2].normal = normalize(vec3(1.0, 0.0, 0.0));
+            planes[2].p = -.5;
+            planes[2].color = vec3(1.0, 0.0, 1.0);
+//
+            //right plane
+            planes[3].normal = normalize(vec3(-1.0, 0.0, 0.0));
+            planes[3].p = .5;
+            planes[3].color = vec3(1.0, 0.0, 0.0);
 
-//            tPlanes[3].v1 = vec3(1.0, 0.8, -1.0);
-//            tPlanes[3].v2 = vec3(1.0, .8, -1.0);
-//            tPlanes[3].v3 = vec3(1.0, -.8, -1.0);
-//            tPlanes[3].color = vec3(1.0, 1.0, 0.5);
+            //top plane
+            planes[4].normal = normalize(vec3(0.0, -1.0, 0.0));
+            planes[4].p = .5;
+            planes[4].color = vec3(1.0, 1.0, 0.0);
+
+            //front plane
+            planes[5].normal = normalize(vec3(0.0, 0.0, -1.0));
+            planes[5].p = .5;
+            planes[5].color = vec3(1.0, 1.0, 1.0);
 
             // Create ray
-            rays[0].origin = vec3(.0, .3, focalLength);
+            rays[0].origin = vec3(.0, .0, focalLength);
             rays[0].direction = normalize(vec3(x, y, -focalLength));
 
             // Create Light source
-            light[0].position = vec3(0.0, 2.0, 2.0);
+            light[0].position = vec3(0.4, 0.3, 0.4);
             light[0].ambience = 0.3;
         }
     }
@@ -255,19 +291,36 @@
         }
     }
 
+    bool checkIntersectPlane(Plane plane, Ray ray, out float t) {
+
+        vec3 n = -normalize(plane.normal);
+        vec3 l = normalize(ray.direction);
+        vec3 l0 = ray.origin;
+        float p0 = plane.p;
+
+        float denom = dot(n, l);
+        if (denom > 1e-6) {
+            vec3 p0l0 = p0 - l0;
+            t = dot(p0l0, n) / denom;
+            return (t >= 0.0);
+        }
+
+        return false;
+    }
+
 
     // adopted from
     // https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/ray-triangle-intersection-geometric-solution
-    bool checkIntersectTPlane(TrianglePlane tPlane, Ray ray, out float t) {
+    bool checkIntersectTriangle(TrianglePlane triangle, Ray ray, out float t) {
 
-        vec3 v0 = tPlane.v1;
-        vec3 v1 = tPlane.v2;
-        vec3 v2 = tPlane.v3;
+        vec3 v0 = triangle.v1;
+        vec3 v1 = triangle.v2;
+        vec3 v2 = triangle.v3;
 
         vec3 orig = ray.origin;
         vec3 dir = ray.direction;
 
-        // computer the pane's normal
+        // compute the pane's normal
         vec3 v0v1 = v1 - v0;
         vec3 v0v2 = v2 - v0;
         // no need to normalize
@@ -288,37 +341,24 @@
         //compute the intersection point
         vec3 P = orig + t * dir;
 
-        // inside-outside test
-//        vec3 edge0 = v1 - v0;
-//        vec3 edge1 = v2 - v1;
-//        vec3 edge2 = v0 - v2;
-//        vec3 C0 = P - v0;
-//        vec3 C1 = P - v1;
-//        vec3 C2 = P - v2;
-//        if (dot(N, cross(edge0, C0)) > 0.0 &&
-//        dot(N, cross(edge1, C1)) > 0.0 &&
-//        dot(N, cross(edge2, C2)) > 0.0) return true;
-//        else return false;
-//    }
-        // Step 2: inside-outside test
         vec3 C; // vector perpendicular to triangle's plane
 
         // edge 0
         vec3 edge0 = v1 - v0;
         vec3 vp0 = P - v0;
-        C = cross(edge0, vp0); //edge0.crossProduct(vp0);
+        C = cross(edge0, vp0);
         if (dot(C, N) < 0.0) return false; // P is on the right side
 
         // edge 1
         vec3 edge1 = v2 - v1;
         vec3 vp1 = P - v1;
-        C = cross(edge1, vp1); //edge1.crossProduct(vp1);
+        C = cross(edge1, vp1);
         if (dot(C, N) < 0.0)  return false; // P is on the right side
 
         // edge 2
         vec3 edge2 = v0 - v2;
         vec3 vp2 = P - v2;
-        C = cross(edge2, vp2); // edge2.crossProduct(vp2);
+        C = cross(edge2, vp2);
         if (dot(C, N) < 0.0) return false; // P is on the right side;
 
         return true;
@@ -327,15 +367,21 @@
     const float sphereShininess = 20.0;
     const float planeShininess = 1e10;
 
+
+
     bool checkIntersect(Ray ray, out float minT, out vec3 surfacePoint, out vec3 surfaceNormal,
-    out vec3 cameraSource, out vec3 cameraDirection, out vec3 objColor, out float shininess) {
+    out vec3 cameraSource, out vec3 cameraDirection, out vec3 objColor, out float shininess, out float absorb) {
         float t;
         float sphereMinT = veryBigNum;
+        float triangleMinT = veryBigNum;
         float planeMinT = veryBigNum;
+        float sphereAbsorb;
+
         minT =  veryBigNum;
 
         Sphere sphereToShow;
-        TrianglePlane planeToShow;
+        TrianglePlane triangleToShow;
+        Plane planeToShow;
 
         cameraSource = ray.origin;
         cameraDirection = ray.direction;
@@ -343,20 +389,37 @@
         // check sphere intersection
         for(int i = 0; i < objNum; i++) {
             if (checkIntersectSphere(spheres[i], ray, t)) {
-                sphereMinT = t;
-                sphereToShow = spheres[i];
+                if (t < sphereMinT) {
+                    sphereMinT = t;
+                    sphereToShow = spheres[i];
+                    sphereAbsorb = sphereAbsorbList[i];
+                }
             }
         }
-        //check plane intersection
+        //check triangle intersection
         for(int i = 0; i < objNum; i++) {
-            if (checkIntersectTPlane(tPlanes[i], ray, t)) {
-                planeMinT = t;
-                planeToShow = tPlanes[i];
+            if (checkIntersectTriangle(triangles[i], ray, t)) {
+                if(t < triangleMinT) {
+                    triangleMinT = t;
+                    triangleToShow = triangles[i];
+                }
             }
         }
 
-        if(sphereMinT < planeMinT && sphereMinT > 0.0 && sphereMinT < veryBigNum) { // if the closest interect is a sphere
+        // check plane intresection
+        for(int i = 0; i < objNum; i ++) {
+            if (checkIntersectPlane(planes[i], ray, t)) {
+                if (t < planeMinT) {
+                    planeMinT = t;
+                    planeToShow = planes[i];
+                }
+            }
+        }
+
+        if(min(planeMinT, min(sphereMinT, triangleMinT)) == sphereMinT && sphereMinT < veryBigNum) { // if the closest interect is a sphere
             minT = sphereMinT;
+            // sphere absorb is already processed in 'check sphere intersection'
+            absorb = sphereAbsorb;
 
             vec3 sphereCenter = sphereToShow.center;
             objColor = sphereToShow.color;
@@ -365,8 +428,20 @@
             shininess = sphereShininess;
             return true;
         }
-        else if (planeMinT < sphereMinT && planeMinT > 0.0 && planeMinT < veryBigNum){  // if the closest interect is a plane
+        else if (min(planeMinT, min(sphereMinT, triangleMinT)) == triangleMinT && triangleMinT < veryBigNum){  // if the closest interect is a triangle
+            minT = triangleMinT;
+            absorb = triangleAbsorb;
+
+            objColor = triangleToShow.color;
+            surfacePoint = cameraSource + (minT * cameraDirection);
+            surfaceNormal = normalize(triangleToShow.normal);
+            shininess = planeShininess;
+            return true;
+        }
+
+        else if (min(planeMinT, min(sphereMinT, triangleMinT)) == planeMinT && planeMinT < veryBigNum){  // if the closest interect is a plane
             minT = planeMinT;
+            absorb = planeAbsorb;
 
             objColor = planeToShow.color;
             surfacePoint = cameraSource + (minT * cameraDirection);
@@ -375,11 +450,10 @@
             return true;
         }
 
-        return false;
+            return false;
     }
 
-    bool checkIntersectShadow(Ray ray) {
-        float minT;
+    bool checkIntersectShadow(Ray ray, out float minT) {
 
         float t = 0.0;
 
@@ -389,13 +463,16 @@
 
         // check sphere intersection
         for(int i = 0; i < objNum; i++) {
-            isIntersect = isIntersect || checkIntersectSphere(spheres[i], ray, t);
-
+            isIntersect = isIntersect || (checkIntersectSphere(spheres[i], ray, t)); // ignore the object it self
         }
         //check plane intersection
         for(int i = 0; i < objNum; i++) {
-            isIntersect = isIntersect || checkIntersectTPlane(tPlanes[i], ray, t);
+            isIntersect = isIntersect || ( checkIntersectTriangle(triangles[i], ray, t));
         }
+
+//        for(int i = 0; i < objNum; i++) {
+//            isIntersect = isIntersect || checkIntersectPlane(planes[i], ray, t);
+//        }
 
         return isIntersect;
     }
@@ -413,6 +490,7 @@
          vec3 cameraSource;
          vec3 cameraDirection;
          float shininess;
+         float absorb;
 
          float veryBigNum = 1e38;
 
@@ -424,7 +502,7 @@
          for (int i = 0; i < numBounces; i ++) {
              if (i >= bounceNum) break;
 
-             if(checkIntersect(ray, minT, surfacePoint, surfaceNormal, cameraSource, cameraDirection, objColor, shininess)) {
+             if(checkIntersect(ray, minT, surfacePoint, surfaceNormal, cameraSource, cameraDirection, objColor, shininess, absorb)) {
 
                  // deal with reflection
                  vec3 reflectionDir = 2.0 * dot(-ray.direction, surfaceNormal) * surfaceNormal + ray.direction; // this is the reflection vector
@@ -438,19 +516,27 @@
                  toLightRay.direction = lightDirection;
 
                  // check if the point is in shadow
-                 if(checkIntersectShadow(toLightRay)) {
+                 if(checkIntersectShadow(toLightRay, minT)) {
                      accumColor = accumColor + objColor * ambience;
                  }
                  else {
                      float specular = pow(max(dot(reflectionDir, lightDirection), 0.0), shininess);
                      float diffuse = max(0.0, dot(surfaceNormal, lightSource));
-                     accumColor = accumColor + objColor * (ambience + (1.0 - ambience) * diffuse * pow(reflectDecay, float(i)));
+                     accumColor = accumColor + objColor * (ambience + (1.0 - ambience) * diffuse * pow((1.0-absorb), float(i)));
                      accumColor = accumColor + lightColor * specular;
+
+                     if (absorb < 1e-10) {  // object is
+                         accumColor = accumColor + objColor;
+                     }
                  }
              }
-//             else {  // the ray did not hit anything
-//                 break;
-//             }
+              else {  // the ray did not hit anything
+                  break;
+              }
+             if (absorb < 1e-10){  // no reflection is the object is completely absorbent
+                 break;
+             }
+
 
              // continue with the reflected ray
              ray = reflectionRay;
@@ -476,9 +562,12 @@
 
 <body onload="main()">
 
-<canvas id="webgl" width="1000" height="1000">
+<canvas id="webgl" width="1000" height="1000" >
     Please use a browser that supports the "canvas" tag.
 </canvas>
+<div style="text-align: center; margin: 30px">
+    <font size="14">Use number key 1~3 to switch between scenes.</font>
+</div>
 
 </body>
 </html>
