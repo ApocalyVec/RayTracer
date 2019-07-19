@@ -4,16 +4,20 @@
 let program;
 let sceneNum;
 
+let canvas;
+
 let sphereShininessSlider;
 let planeShininessSlider;
 let numBouncesSlider;
 
 let time0;
 
+let gl;
+
 function main()
 {
     // Retrieve <canvas> element
-    let canvas = document.getElementById('webgl');
+    canvas = document.getElementById('webgl');
     sphereShininessSlider = document.getElementById('sphereShininessSlider');
     planeShininessSlider = document.getElementById('planeShininessSlider');
     numBouncesSlider = document.getElementById('numBouncesSlider');
@@ -76,8 +80,12 @@ function main()
         }
     });
 
+    // gl.enable(gl.SAMPLE_COVERAGE);
+    // gl.sampleCoverage(0.5, false);
+
     time0 = (new Date()).getTime() / 1000;
 
+    createBufferTexture();
     render();
 }
 
@@ -98,4 +106,11 @@ function render() {
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     requestAnimationFrame(render);
+}
+
+function createBufferTexture() {
+    const targetTextureWidth = canvas.width;
+    const targetTextureHeight = canvas.height;
+    const targetTexture = gl.createTexture();
+
 }
