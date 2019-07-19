@@ -8,4 +8,6 @@ Use the slider to change sphere and plane shininess.
 
 Use the slider to change the number of reflections.
 
+artistic third scene.
+
 Third scene left sphere is completely reflective
