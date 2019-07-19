@@ -72,6 +72,7 @@
 <script id="fshader" type="x-shader/x-fragment">
     precision mediump float;
     varying vec3 vPosition;
+    uniform float uTime;
 
     varying float fsceneNum;
 
@@ -634,6 +635,10 @@
         return !(min(lightMinT, min(planeMinT, min(sphereMinT, triangleMinT))) == lightMinT);
     }
 
+    vec3 normRandVec3() {
+        return vec3(0.0, 0.0, 0.0);
+    }
+
     vec3 getRay(Ray ray, Light light) {
 
          vec3 lightSource = light.position;
@@ -661,10 +666,10 @@
         float shadow_det;
 
          for (int i = 0; i < numBounces; i ++) {
-             if (i >= int(bounceNum)) break;  // if the number of reflection is reached
+             if (i >= int(bounceNum)) break;  // if the number of reflection is reached, terminate the loop
 
              if(checkIntersect(ray, minT, surfacePoint, surfaceNormal, lightingNormal, cameraSource, cameraDirection, objColor, shininess, absorb, isLightSource)) {
-                 if(isLightSource) {
+                 if(isLightSource) { // if we hit the light source
                     return lightColor;
                  }
                  // deal with reflection
@@ -681,6 +686,8 @@
                  Ray toLightRay;
                  toLightRay.origin = reflectionRay.origin;
                  toLightRay.direction = lightDirection;
+
+                 vec3 randPosOnLight = light.position + normRandVec3() * light.radius;
 
                  // check if the point is in shadow
                  if(checkIntersectShadow(toLightRay, shadow_det)) {

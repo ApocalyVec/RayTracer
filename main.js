@@ -8,6 +8,8 @@ let sphereShininessSlider;
 let planeShininessSlider;
 let numBouncesSlider;
 
+let time0;
+
 function main()
 {
     // Retrieve <canvas> element
@@ -74,12 +76,17 @@ function main()
         }
     });
 
+    time0 = (new Date()).getTime() / 1000;
+
     render();
 }
 
 function render() {
     // process user inputs
     gl.uniform1f(gl.getUniformLocation(program, "sceneNum"), sceneNum);
+
+    gl.uTime = gl.getUniformLocation(program, "uTime");
+    gl.uniform1f(gl.uTime, (new Date()).getTime() / 1000 - time0);
 
     gl.uniform1f(gl.getUniformLocation(program, "vSphereShininess"), parseFloat(sphereShininessSlider.value));
     gl.uniform1f(gl.getUniformLocation(program, "vPlaneShininess"), parseFloat(planeShininessSlider.value));
