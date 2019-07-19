@@ -108,19 +108,17 @@
 
     struct Light {
         vec3 position;
+        float radius;
+
         float ambience;
         vec3 specular;
         vec3 diffuse;
     };
 
-    struct RayTracerOutput {
-        vec3 color;
-    };
+    const int objNum = 10;
 
     Ray rays[1];
-    Light light[1];
-
-    const int objNum = 10;
+    Light light[objNum];
 
     Sphere spheres[objNum];
     Triangle triangles[objNum];
@@ -129,7 +127,7 @@
     float sphereAbsorbList[objNum];
 
     const float triangleAbsorb = 0.5;
-    const float planeAbsorb = 1e-38;
+    const float planeAbsorb = 1.0 - 1e-32;
 
     vec3 newell(vec3 v1, vec3 v2, vec3 v3) {
         float n1, n2, n3;
@@ -156,6 +154,8 @@
         float y = vPosition.y; // pixel positions y
         float z = vPosition.z; // pixel positions z
         vec3 color = vec3(0.0, 0.0, 0.0);
+
+        light[0].radius = 0.02;
 
         if (fsceneNum == 1.0) {
             float focalLength = 1.5;
@@ -233,13 +233,16 @@
             // Create Light source
             light[0].position = vec3(0.0, 0.0, 1.75);
             light[0].ambience = 0.2;
+
+            light[0].radius = 0.001;
+
         }
         else if (fsceneNum == 3.0) {
             // aobsorb factor for the spheres when reflecting
             for (int i = 0; i < objNum; i ++) {
-                sphereAbsorbList[i] = 0.99;
+                sphereAbsorbList[i] = 1.0 - 1e-32;
             }
-            sphereAbsorbList[0] = 1e-10;  // the first sphere is completely reflective
+            sphereAbsorbList[0] = 0.001;  // the first sphere is completely reflective
 
             float focalLength = 2.0;
 
@@ -303,6 +306,8 @@
     const float veryBigNum = 1e23;
     const float verySmallNum = 1e-23;
 
+    const float lightShininess = verySmallNum;
+
     vec3 lightColor = vec3(1.0);
 
     bool checkIntersectSphere(Sphere sphere, Ray ray, out float t) {
@@ -310,6 +315,36 @@
 
         vec3 sphereCenter = sphere.center;
         float radius = sphere.radius;
+        vec3 cameraSource = ray.origin;
+        vec3 cameraDirection = ray.direction;
+
+        vec3 distanceFromCenter = (cameraSource - sphereCenter);
+        float B = 2.0 * dot(cameraDirection, distanceFromCenter);
+        float C = dot(distanceFromCenter, distanceFromCenter) - pow(radius, 2.0);
+        float delta = pow(B, 2.0) - 4.0 * C;
+        if (delta > 0.0) {
+            float sqRoot = sqrt(delta);
+            float t1 = (-B + sqRoot) / 2.0;
+            float t2 = (-B - sqRoot) / 2.0;
+            t = min(t1, t2);
+        }
+        if (delta == 0.0) {
+            t = -B / 2.0;
+        }
+
+        if (t > 0.0 && t < veryBigNum) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    bool checkIntersectLight(Light light, Ray ray, out float t) {
+        t = veryBigNum;
+
+        vec3 sphereCenter = light.position;
+        float radius = light.radius;
         vec3 cameraSource = ray.origin;
         vec3 cameraDirection = ray.direction;
 
@@ -408,11 +443,13 @@
     }
 
     bool checkIntersect(Ray ray, out float minT, out vec3 surfacePoint, out vec3 surfaceNormal, out vec3 lightingNormal,
-    out vec3 cameraSource, out vec3 cameraDirection, out vec3 objColor, out float shininess, out float absorb) {
+    out vec3 cameraSource, out vec3 cameraDirection, out vec3 objColor, out float shininess, out float absorb, out bool isLightSource) {
         float t;
         float sphereMinT = veryBigNum;
         float triangleMinT = veryBigNum;
         float planeMinT = veryBigNum;
+        float lightMinT = veryBigNum;
+
         float sphereAbsorb;
 
         minT =  veryBigNum;
@@ -420,6 +457,7 @@
         Sphere sphereToShow;
         Triangle triangleToShow;
         Plane planeToShow;
+        Light lightToShow;
 
         cameraSource = ray.origin;
         cameraDirection = ray.direction;
@@ -444,7 +482,7 @@
             }
         }
 
-        // check plane intresection
+        // check plane intersection
         for(int i = 0; i < objNum; i ++) {
             if (checkIntersectPlane(planes[i], ray, t)) {
                 if (t < planeMinT) {
@@ -454,7 +492,19 @@
             }
         }
 
-        if(min(planeMinT, min(sphereMinT, triangleMinT)) == sphereMinT && sphereMinT < veryBigNum) { // if the closest interect is a sphere
+        // check light source intersection
+        for(int i = 0; i < objNum; i++) {
+            if (checkIntersectLight(light[i], ray, t)) {
+                if (t < sphereMinT) {
+                    lightMinT = t;
+                    lightToShow = light[i];
+                }
+            }
+        }
+
+        isLightSource = false;
+
+        if(min(lightMinT, min(planeMinT, min(sphereMinT, triangleMinT))) == sphereMinT && sphereMinT < veryBigNum) { // if the closest interect is a sphere
             minT = sphereMinT;
             // sphere absorb is already processed in 'check sphere intersection'
             absorb = sphereAbsorb;
@@ -466,7 +516,7 @@
             shininess = sphereShininess;
             return true;
         }
-        else if (min(planeMinT, min(sphereMinT, triangleMinT)) == triangleMinT && triangleMinT < veryBigNum){  // if the closest interect is a triangle
+        else if (min(lightMinT, min(planeMinT, min(sphereMinT, triangleMinT))) == triangleMinT && triangleMinT < veryBigNum){  // if the closest interect is a triangle
             minT = triangleMinT;
             absorb = triangleAbsorb;
 
@@ -477,7 +527,7 @@
             return true;
         }
 
-        else if (min(planeMinT, min(sphereMinT, triangleMinT)) == planeMinT && planeMinT < veryBigNum){  // if the closest interect is a plane
+        else if (min(lightMinT, min(planeMinT, min(sphereMinT, triangleMinT))) == planeMinT && planeMinT < veryBigNum){  // if the closest interect is a plane
             minT = planeMinT;
             absorb = planeAbsorb;
 
@@ -488,6 +538,13 @@
             shininess = planeShininess;
             return true;
         }
+        else if (min(lightMinT, min(planeMinT, min(sphereMinT, triangleMinT))) == lightMinT && lightMinT < veryBigNum){  // if the closest interect is a plane
+            minT = lightMinT;
+            isLightSource = true;
+            objColor = vec3(1.0, 1.0, 1.0);  // light is white
+
+            return true;
+        }
 
             return false;
     }
@@ -495,27 +552,62 @@
     bool checkIntersectShadow(Ray ray, out float shadow_det) {
 
         float t = 0.0;
+        float minT = veryBigNum;
+        float sphereMinT = veryBigNum;
+        float triangleMinT = veryBigNum;
+        float planeMinT = veryBigNum;
+        float lightMinT = veryBigNum;
 
         bool isIntersect = false;
 
         // check sphere intersection
+//        for(int i = 0; i < objNum; i++) {
+//            isIntersect = isIntersect || (checkIntersectSphere(spheres[i], ray, t));
+//        }
+//        //check triangle intersection
+//        for(int i = 0; i < objNum; i++) {
+//            isIntersect = isIntersect || ( checkIntersectTriangle(triangles[i], ray, t));
+//        }
+
+        // check sphere intersection
         for(int i = 0; i < objNum; i++) {
-            isIntersect = isIntersect || (checkIntersectSphere(spheres[i], ray, t));
+            if (checkIntersectSphere(spheres[i], ray, t)) {
+                if (t < sphereMinT) {
+                    sphereMinT = t;
+                }
+            }
         }
         //check triangle intersection
         for(int i = 0; i < objNum; i++) {
-            isIntersect = isIntersect || ( checkIntersectTriangle(triangles[i], ray, t));
+            if (checkIntersectTriangle(triangles[i], ray, t)) {
+                if(t < triangleMinT) {
+                    triangleMinT = t;
+                }
+            }
         }
 
-//        for(int i = 0; i < objNum; i++) {
-//            isIntersect = isIntersect || checkIntersectPlane(planes[i], ray, t);
-//        }
+        // check plane intersection
+        for(int i = 0; i < objNum; i ++) {
+            if (checkIntersectPlane(planes[i], ray, t)) {
+                if (t < planeMinT) {
+                    planeMinT = t;
+                }
+            }
+        }
 
-        return isIntersect;
+        // check light source intersection
+        for(int i = 0; i < objNum; i++) {
+            if (checkIntersectLight(light[i], ray, t)) {
+                if (t < sphereMinT) {
+                    lightMinT = t;
+                }
+            }
+        }
+
+        return !(min(lightMinT, min(planeMinT, min(sphereMinT, triangleMinT))) == lightMinT);
     }
 
     vec3 getRay(Ray ray, Light light) {
-         RayTracerOutput rayTracer;
 
          vec3 lightSource = light.position;
          float ambience = light.ambience;
@@ -530,6 +622,8 @@
          float shininess;
          float absorb;
 
+        bool isLightSource;
+
          float veryBigNum = 1e38;
 
          Ray reflectionRay;
@@ -540,10 +634,12 @@
         float shadow_det;
 
          for (int i = 0; i < numBounces; i ++) {
-             if (i >= int(bounceNum)) break;
+             if (i >= int(bounceNum)) break;  // if the number of reflection is reached
 
-             if(checkIntersect(ray, minT, surfacePoint, surfaceNormal, lightingNormal, cameraSource, cameraDirection, objColor, shininess, absorb)) {
-
+             if(checkIntersect(ray, minT, surfacePoint, surfaceNormal, lightingNormal, cameraSource, cameraDirection, objColor, shininess, absorb, isLightSource)) {
+                 if(isLightSource) {
+                    return lightColor;
+                 }
                  // deal with reflection
                  vec3 reflectionDir =reflect(ray.direction, surfaceNormal); // this is the reflection vector
                  reflectionRay.origin = surfacePoint + 0.00001 * reflectionDir;  // avoid z fighting
@@ -565,10 +661,11 @@
                  }
                  else {
                      float specular = pow(max(dot(reflectionDir, lightDirection), 0.0), shininess);
-                     float diffuse = max(0.0, dot(lightingNormal, lightSource)) * pow((1.0-absorb), float(i)); //abs(dot(surfaceNormal, lightSource));
+                     float diffuse = max(0.0, dot(lightingNormal, lightSource));
 
-                     accumColor = accumColor + objColor * (ambience + (1.0 - ambience) * diffuse);
-                     accumColor = accumColor + lightColor * specular;
+                     // ternary: light is absorb by the object after reflection
+                     accumColor = accumColor + objColor * (ambience + (1.0 - ambience) * diffuse)*(i > 1 ? absorb : 1.0);
+                     accumColor = accumColor + lightColor * specular * (absorb)*(i > 1 ? absorb : 1.0);
                  }
              }
 
@@ -576,12 +673,13 @@
                   break;
               }
 
-             if(absorb < 1e-10) {
+             if((1.0 - absorb) < verySmallNum) {
                  break;
              }
              // continue with the reflected ray
              ray = reflectionRay;
          }
+
          return accumColor;
      }
 
