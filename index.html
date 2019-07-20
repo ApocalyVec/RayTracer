@@ -43,6 +43,8 @@
 
 <script id="vshader" type="x-shader/x-vertex">
    attribute vec3 aPosition;
+   attribute vec2 a_texcoord;
+
    varying   vec3 vPosition;
 
    // user inputs
@@ -59,7 +61,7 @@
    varying float bounceNum;
 
 //   uniform mat4 u_matrix;
-//   varying vec2 v_texcoord;
+   varying vec2 v_texcoord;
 
    void main() {
       gl_Position = vec4(aPosition, 1.0);
@@ -69,23 +71,29 @@
        sphereShininess = vSphereShininess;
        planeShininess = vPlaneShininess;
        bounceNum = vNumBounces;
-//       v_texcoord = a_texcoord;
+
+       v_texcoord = a_texcoord;
    }
 </script>
 
 <script id="fshader" type="x-shader/x-fragment">
-    precision mediump float;
-    varying vec3 vPosition;
+    precision highp float;
     uniform float uTime;
-
     varying float fsceneNum;
-
     varying float planeShininess;
     varying float sphereShininess;
-
     varying float bounceNum;
+    uniform float f_isSoftShadow;
+    uniform float f_lightIntensity;
+    uniform float f_lightRadius;
 
-//    varying vec2 v_texcoord;
+    uniform float f_lightX;
+    uniform float f_lightY;
+    uniform float f_lightZ;
+
+    varying vec3 vPosition;
+    uniform sampler2D u_texture;
+    varying vec2 v_texcoord;
 
     // Noise
     vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -195,16 +203,19 @@
     float y; // pixel positions y
     float z; // pixel positions z
 
+    float focalLength;
+
     void initialize() {
         x = vPosition.x; // get pixel positions x
         y = vPosition.y; // get pixel positions y
         z = vPosition.z; // get pixel positions z
         vec3 color = vec3(0.0, 0.0, 0.0);
 
-        light[0].radius = 0.02;
+        light[0].radius = f_lightRadius;
+        light[0].position = vec3(f_lightX, f_lightZ, f_lightY);
 
         if (fsceneNum == 1.0) {
-            float focalLength = 1.5;
+            focalLength = 1.5;
             // aobsorb factor for the spheres when reflecting
             for (int i = 0; i < objNum; i ++) {
                 sphereAbsorbList[i] = 0.5;
@@ -238,7 +249,6 @@
             rays[0].direction = normalize(vec3(x, y, -focalLength));
 
             // Create Light source
-            light[0].position = vec3(-2.0, 2.0, 2.0);
             light[0].ambience = 0.3;
         }
         else if (fsceneNum == 2.0) {
@@ -247,7 +257,7 @@
                 sphereAbsorbList[i] = 0.6;
             }
 
-            float focalLength = 2.0;
+            focalLength = 2.0;
 
             float spherePos = 0.3;
             float sphereRad = 0.25;
@@ -277,9 +287,7 @@
             rays[0].direction = normalize(vec3(x, y, -focalLength));
 
             // Create Light source
-            light[0].position = vec3(0.0, 0.0, 1.75);
             light[0].ambience = 0.2;
-
 
         }
         else if (fsceneNum == 3.0) {
@@ -292,7 +300,7 @@
             sphereAbsorbList[6] = 0.001;
             sphereAbsorbList[7] = 0.001;
 
-            float focalLength = 2.0;
+            focalLength = 2.0;
 
             // Create spheres
             spheres[0].center = vec3(-.4, -.4, 0.0);
@@ -370,7 +378,6 @@
             rays[0].direction = normalize(vec3(x, y, -focalLength));
 
             // Create Light source
-            light[0].position = vec3(0.0, .4, 0.4);
             light[0].ambience = 0.2;
         }
     }
@@ -633,6 +640,8 @@
 
         bool isIntersect = false;
 
+
+
         // check sphere intersection
 //        for(int i = 0; i < objNum; i++) {
 //            isIntersect = isIntersect || (checkIntersectSphere(spheres[i], ray, t));
@@ -689,6 +698,11 @@
         return normalize(vec3(noise(vec3(x * 100.0, y * 100.0, simpleRand(vec2(x, y))))));
     }
 
+    vec2 rand2Uniform() {
+
+        return normRandVec3().xy;
+    }
+
     vec3 getRay(Ray ray, Light light) {
 
          vec3 lightSource = light.position;
@@ -720,75 +734,74 @@
          for (int i = 0; i < numBounces; i ++) {
              if (i >= int(bounceNum)) break;  // if the number of reflection is reached, terminate the loop
 
+
              if(checkIntersect(ray, minT, surfacePoint, surfaceNormal, lightingNormal, cameraSource, cameraDirection, objColor, shininess, absorb, isLightSource)) {
                  if(isLightSource) { // if we hit the light source
                     return lightColor;
                  }
+
                  // deal with reflection
                  vec3 reflectionDir =reflect(ray.direction, surfaceNormal); // this is the reflection vector
                  reflectionRay.origin = surfacePoint + 0.00001 * reflectionDir;  // avoid z fighting
-
-//                 vec3 reflectionDir =refract(ray.direction, surfaceNormal, 0.98); // this is the reflection vector
-//                 reflectionRay.origin = surfacePoint - 0.00001 * reflectionDir;  // avoid z fighting
+                 //                  try refraction
+                 //                 vec3 reflectionDir =refract(ray.direction, surfaceNormal, 0.98); // this is the reflection vector
+                 //                 reflectionRay.origin = surfacePoint - 0.00001 * reflectionDir;  // avoid z fighting
 
                  reflectionRay.direction = reflectionDir;
 
-                 vec3 lightDirection = normalize(lightSource  - surfacePoint);
+                 if(f_isSoftShadow == 1.0) {
 
-//                 Ray toLightRay;
-//                 toLightRay.origin = reflectionRay.origin;
-//                 toLightRay.direction = lightDirection;
+                     vec3 lightDirection = normalize(lightSource  - surfacePoint);
 
-                 // process lighting
+                     float _minT;
+                     vec3 _objColor;
+                     vec3 _surfacePoint;
+                     vec3 _surfaceNormal;  // surface normal on the light source
+                     vec3 _lightingNormal;
+                     vec3 _cameraSource;
+                     vec3 _cameraDirection;
+                     float _shininess;
+                     float _absorb;
+                     bool _isLightSource;
 
-                    float _minT;
-                    vec3 _objColor;
-                    vec3 _surfacePoint;
-                    vec3 _surfaceNormal;  // surface normal on the light source
-                    vec3 _lightingNormal;
-                    vec3 _cameraSource;
-                    vec3 _cameraDirection;
-                    float _shininess;
-                    float _absorb;
-                    bool _isLightSource;
+                     vec3 lp = light.position + normRandVec3() * light.radius; // lp: random position on the surface of the light source
+                     vec3 ldir = normalize(lp - reflectionRay.origin);
+                     Ray lray;
+                     lray.origin = surfacePoint + ldir * 0.0001;
+                     lray.direction = ldir;
 
-                    vec3 lp = light.position + normRandVec3() * light.radius; // lp: random position on the surface of the light source
-                    vec3 ldir = normalize(lp - reflectionRay.origin);
-                    Ray lray;
-                    lray.origin = surfacePoint + ldir * 0.0001;
-                    lray.direction = ldir;
+                     bool isIntersect = checkIntersect(lray, _minT, _surfacePoint, _surfaceNormal, _lightingNormal, _cameraSource, _cameraDirection, _objColor, _shininess, _absorb, _isLightSource);
+                     if(isIntersect && _isLightSource) { // if the ray hit a light source
 
-                    bool isIntersect = checkIntersect(lray, _minT, _surfacePoint, _surfaceNormal, _lightingNormal, _cameraSource, _cameraDirection, _objColor, _shininess, _absorb, _isLightSource);
-                    if(isIntersect && _isLightSource) { // if the ray hit a light source
+                         float d = clamp(dot(lightingNormal, ldir), 0.0, 1.0); // calculate the impact of the anlge of incidence between the light source surface norm and the light ray direction
+                         d *= pow(asin(light.radius/distance(surfacePoint, light.position)), 2.0);
 
-                        float d = clamp(dot(lightingNormal, ldir), 0.0, 1.0); // calculate the impact of the anlge of incidence between the light source surface norm and the light ray direction
-                        d *= pow(asin(light.radius/distance(surfacePoint, light.position)), 2.0);
+                         float specular = pow(max(dot(reflectionDir, lightDirection), 0.0), shininess);
+                         float diffuse = max(0.0, dot(lightingNormal, lightSource));
 
-                        float specular = pow(max(dot(reflectionDir, lightDirection), 0.0), shininess);
-                        float diffuse = max(0.0, dot(lightingNormal, lightSource));
+                         // ternary: light is absorb by the object after reflection
+                         accumColor += f_lightIntensity * d * (specular + objColor) * mask;//*(i > 1 ? absorb : 1.0);
+                     }
 
-                        // ternary: light is absorb by the object after reflection
-                        accumColor += 3000.0 * d * (specular + objColor) * mask;//*(i > 1 ? absorb : 1.0);
-                        //                     accumColor = accumColor + lightColor * specular * (absorb)*(i > 1 ? absorb : 1.0);
-                    }
+                 }
+                 else {
+                     vec3 lightDirection = normalize(lightSource  - surfacePoint);
+                     Ray toLightRay;
+                     toLightRay.origin = reflectionRay.origin;
+                     toLightRay.direction = lightDirection;
+                     // check if the point is in shadow
+                     if(checkIntersectShadow(toLightRay, shadow_det)) {
+                         accumColor = accumColor + objColor * ambience;
+                     }
+                     else {
+                         float specular = pow(max(dot(reflectionDir, lightDirection), 0.0), shininess);
+                         float diffuse = max(0.0, dot(lightingNormal, lightSource));
+                         // ternary: light is absorb by the object after reflection
+                         accumColor = accumColor + objColor * (ambience + (1.0 - ambience) * diffuse)*(i > 1 ? absorb : 1.0);
+                         accumColor = accumColor + lightColor * specular * (absorb)*(i > 1 ? absorb : 1.0);
+                     }
+                 }
 
-//                 else if (isIntersect && !_isLightSource){ // if the ray hit an object
-//                     accumColor = accumColor + objColor * ambience;
-//
-//                 }
-
-                 // check if the point is in shadow
-//                 if(checkIntersectShadow(toLightRay, shadow_det)) {
-//                     accumColor = accumColor + objColor * ambience;
-//                 }
-//                 else {
-//                     float specular = pow(max(dot(reflectionDir, lightDirection), 0.0), shininess);
-//                     float diffuse = max(0.0, dot(lightingNormal, lightSource));
-//
-//                     // ternary: light is absorb by the object after reflection
-//                     accumColor = accumColor + objColor * (ambience + (1.0 - ambience) * diffuse)*(i > 1 ? absorb : 1.0);
-//                     accumColor = accumColor + lightColor * specular * (absorb)*(i > 1 ? absorb : 1.0);
-//                 }
              }
 
               else {  // the ray did not hit anything
@@ -809,7 +822,22 @@
         initialize();
         vec3 color = getRay(rays[0], light[0]);
 
-        gl_FragColor = vec4(color, 1.0);
+        if (f_isSoftShadow == 1.0) {
+            float resolution = 800.0;
+
+            // texture map of the last frame
+            vec3 src = texture2D(u_texture, v_texcoord).rgb;
+
+            vec2 jitter = rand2Uniform() - 0.5;
+            vec2 px = 2.0 * (gl_FragCoord.xy + jitter)/resolution - 1.0;
+            rays[0].direction =  normalize(vec3(px, -focalLength));
+
+            gl_FragColor = vec4(color + src - vec3(0.0, 0.0, 1.0), 1.0);
+        }
+        else {
+            gl_FragColor = vec4(color, 1.0);
+
+        }
    }
 </script>
 
@@ -827,9 +855,12 @@
     Please use a browser that supports the "canvas" tag.
 </canvas>
 <div style="text-align: center; margin: 30px">
-    <h1>
+    <h2>
         <span style="font-weight:bold">Use number key 1~3 to switch between scenes.</span>
-    </h1>
+    </h2>
+    <h2>
+        <span style="font-weight:bold">Press s to toggle softshadow.</span>
+    </h2>
 </div>
 
 <div id = "sliderContainer">
@@ -842,6 +873,24 @@
 
     <input type="range" min="1" max="6" value="4.0" class="slider" id="numBouncesSlider" name="numBouncesSlider">
     <label for="numBouncesSlider">Slide to Number of Reflections</label>
+
+    <input type="range" min="-200" max="200" value="0" class="slider" id="lightXSlider" name="lightXSlider">
+    <label for="lightXSlider">Slide to Change the Light Source X Position</label>
+
+    <input type="range" min="-200" max="200" value="40" class="slider" id="lightYSlider" name="lightYSlider">
+    <label for="lightYSlider">Slide to Change the Light Source Y Position</label>
+
+    <input type="range" min="-200" max="200" value="40" class="slider" id="lightZSlider" name="lightZSlider">
+    <label for="lightZSlider">Slide to Change the Light Source Z Position</label>
+
+    <input type="range" min="100.0" max="20000.0" value="3000.0" class="slider" id="lightIntensitySlider" name="lightIntensitySlider">
+    <label for="lightIntensitySlider">Requires Softshadow: Slide to change the Light Intensity</label>
+
+    <input type="range" min="2" max="400" value="20" class="slider" id="lightRadiusSlider" name="lightRadiusSlider">
+    <label for="lightRadiusSlider">Requires Softshadow: Slide to change the Light Source Radius</label>
+
+
+
 
 </div>
 
